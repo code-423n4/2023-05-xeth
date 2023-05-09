@@ -18,9 +18,9 @@ Some of the checklists in this doc are for **C4 (🐺)** and some of them are fo
 - [x] Create a new private repo named `YYYY-MM-sponsorname` using this repo as a template.
 - [x] Rename this repo to reflect contest date (if applicable)
 - [x] Rename contest H1 below
-- [ ] Update pot sizes
-- [ ] Fill in start and end times in contest bullets below
-- [ ] Add link to submission form in contest details below
+- [x] Update pot sizes
+- [x] Fill in start and end times in contest bullets below
+- [x] Add link to submission form in contest details below
 - [ ] Add the information from the scoping form to the "Scoping Details" section at the bottom of this readme.
 - [ ] Add matching info to the [code423n4.com public contest data here](https://github.com/code-423n4/code423n4.com/blob/main/_data/contests/contests.csv))
 - [ ] Add sponsor to this private repo with 'maintain' level access.
@@ -71,7 +71,7 @@ Under "SPONSORS ADD INFO HERE" heading below, include the following:
   - Scout awards: $500 USDC 
   - Mitigation review contest: $6,500 USDC
 - Join [C4 Discord](https://discord.gg/code4rena) to register
-- Submit findings [using the C4 form](https://code4rena.com/contests/YYYY-MM-sponsorName-contest/submit)
+- Submit findings [using the C4 form](https://code4rena.com/contests/2023-05-xeth-contest/submit)
 - [Read our guidelines for more details](https://docs.code4rena.com/roles/wardens)
 - Starts May 12, 2023 20:00 UTC
 - Ends May 15, 2023 20:00 UTC
