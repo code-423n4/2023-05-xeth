@@ -53,7 +53,7 @@ Under "SPONSORS ADD INFO HERE" heading below, include the following:
 
 ---
 
-# Xeth Invitational contest details
+# xETH Invitational contest details
 - Total Prize Pool: $35,000 USDC 
   - HM awards: $15,810 USDC
   - QA report awards: $1,860 USDC 
