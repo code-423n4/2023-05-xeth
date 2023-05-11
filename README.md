@@ -71,6 +71,39 @@ Under "SPONSORS ADD INFO HERE" heading below, include the following:
 | [src/xETH.sol](src/xETH.sol) | 51 | xETH is a mintable ERC20 token with pausing | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) |
 
 
+## Description
+
+### xETH
+
+xETH is the ERC20 token of this project, which will be paired against stETH to open up a curve pool.
+
+xETH has Access Control, so anyone with MINTER_ROLE can mint xETH. In this specific case, MINTER_ROLE is assigned to AMO contract. For minting / burning xETH from the Curve Pool.
+
+This contract has pausable transfers as well. In case of any emergency.
+
+### wxETH
+
+wxETH is the staking contract of xETH. where holders of xETH can stake wxETH to earn some yield on it.
+
+It follows a drip mechanism, where the owner has to add certain locked funds and they are distributed block by block to the holders (as an exchangeRate adjustment)
+
+### AMO2
+
+AMO mints and burns xETH to deposit it into the curve pool and staking the LP into the convex reward pool.
+
+rebalanceUp = burn
+rebalanceDown = mint
+
+it mints when xETH %age in pool is below a certain threshold. it burns when xETH %age is above a certain threshold.
+
+The amounts of lpBurn and xETH mint comes from an offchain bot called defender. But we rely on a contract based quote (with a certain slippage) to cap it and find the best quote
+
+### CVXStaker
+
+It is pretty much a fork of aura staker: https://etherscan.io/address/0xDaAC0A9818aFA6f8Fb4672Dc8284940B169c96e8 and it stakes lp token into a convex pool and helps in recovery of rewards, withdrawls, etc.
+
+
+
 ## Setup Instructions
 
 The tests depend on mainnet curve contracts, which will require you to run tests in forking mode with an RPC.
