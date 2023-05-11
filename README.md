@@ -65,18 +65,23 @@ Under "SPONSORS ADD INFO HERE" heading below, include the following:
 
 | Contract | SLOC | Purpose | Libraries used |  
 | ----------- | ----------- | ----------- | ----------- |
-| [xeth/src/AMO2.sol](xeth/src/AMO2.sol) | 330 | AMO Contract for xETH | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
-| [xeth/src/CVXStaker.sol](xeth/src/CVXStaker.sol) | 142 | Staking xETH-stETH LP tokens to CVX, used by the AMO | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
-| [xeth/src/wxETH.sol](xeth/src/wxETH.sol) | 113 | wxETH is xETH staking to get rewards | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and [`solmate/`](xeth/lib/solmate) |
-| [xeth/src/xETH.sol](xeth/src/xETH.sol) | 51 | xETH is a mintable ERC20 token with pausing | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) |
+| [src/AMO2.sol](src/AMO2.sol) | 330 | AMO Contract for xETH | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
+| [src/CVXStaker.sol](src/CVXStaker.sol) | 142 | Staking xETH-stETH LP tokens to CVX, used by the AMO | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
+| [src/wxETH.sol](src/wxETH.sol) | 113 | wxETH is xETH staking to get rewards | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and [`solmate/`](lib/solmate) |
+| [src/xETH.sol](src/xETH.sol) | 51 | xETH is a mintable ERC20 token with pausing | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) |
+
 
 ## Setup Instructions
+
+The tests depend on mainnet curve contracts, which will require you to run tests in forking mode with an RPC.
+
+We used alchemy while building the protocol and hence an example of the same is added. Please replace `[ALCHEMY_API_KEY]` variable before running the commands below. 
 
 ```bash
 git submodule update --init --recursive  ## initialize submodule dependencies
 npm install ## install development dependencies
 forge build
-forge test
+forge test -vvv -f https://eth-mainnet.g.alchemy.com/v2/[ALCHEMY_API_KEY]
 ```
 
 ### Tests
@@ -84,7 +89,7 @@ forge test
 You can run tests by using the following command:
 
 ```bash
-forge test
+forge test -vvv -f https://eth-mainnet.g.alchemy.com/v2/[ALCHEMY_API_KEY]
 ```
 
 Please note that the tests for this codebase are _NON EXHAUSTIVE_. They do not cover every single case of the protocol, but do help in development and testing certain features / aspects of the code.
