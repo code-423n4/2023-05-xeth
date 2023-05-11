@@ -30,11 +30,14 @@ _Note for C4 wardens: Anything included in the automated findings output is cons
 
 | Contract | SLOC | Purpose | Libraries used |  
 | ----------- | ----------- | ----------- | ----------- |
-| [src/AMO2.sol](src/AMO2.sol) | 330 | AMO Contract for xETH | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
-| [src/CVXStaker.sol](src/CVXStaker.sol) | 142 | Staking xETH-stETH LP tokens to CVX, used by the AMO | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
-| [src/wxETH.sol](src/wxETH.sol) | 113 | wxETH is xETH staking to get rewards | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and [`solmate/`](lib/solmate) |
-| [src/xETH.sol](src/xETH.sol) | 51 | xETH is a mintable ERC20 token with pausing | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) |
+| [src/AMO2.sol](https://github.com/code-423n4/2023-05-xeth/blob/main/src/AMO2.sol) | 330 | AMO Contract for xETH | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
+| [src/CVXStaker.sol](https://github.com/code-423n4/2023-05-xeth/blob/main/src/CVXStaker.sol) | 142 | Staking xETH-stETH LP tokens to CVX, used by the AMO | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and Curve |
+| [src/wxETH.sol](https://github.com/code-423n4/2023-05-xeth/blob/main/src/wxETH.sol) | 113 | wxETH is xETH staking to get rewards | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) and [`solmate/`](lib/solmate) |
+| [src/xETH.sol](https://github.com/code-423n4/2023-05-xeth/blob/main/src/xETH.sol) | 51 | xETH is a mintable ERC20 token with pausing | [`@openzeppelin/*`](https://openzeppelin.com/contracts/) |
 
+`src/interfaces` is included.
+
+`src/archive` is **Out of Scope**.
 
 ## Description
 
@@ -65,19 +68,17 @@ The amounts of lpBurn and xETH mint comes from an offchain bot called defender. 
 
 ### CVXStaker
 
-It is pretty much a fork of aura staker: https://etherscan.io/address/0xDaAC0A9818aFA6f8Fb4672Dc8284940B169c96e8 and it stakes lp token into a convex pool and helps in recovery of rewards, withdrawls, etc.
-
+It is pretty much a fork of aura staker: <https://etherscan.io/address/0xDaAC0A9818aFA6f8Fb4672Dc8284940B169c96e8> and it stakes lp token into a convex pool and helps in recovery of rewards, withdrawals, etc.
 
 ### Rebalance Defender (not a contract)
 
 It is a role assigned to an off-chain bot that provides quotes for rebalancing up and down. It's quote is checked against a quote provided by the AMO contract with higher slippage to ensure that the provided quote isn't malicious.
 
-
 ## Setup Instructions
 
 The tests depend on mainnet curve contracts, which will require you to run tests in forking mode with an RPC.
 
-We used alchemy while building the protocol and hence an example of the same is added. Please replace `[ALCHEMY_API_KEY]` variable before running the commands below. 
+We used alchemy while building the protocol and hence an example of the same is added. Please replace `[ALCHEMY_API_KEY]` variable before running the commands below.
 
 ```bash
 git submodule update --init --recursive  ## initialize submodule dependencies
@@ -88,7 +89,7 @@ forge test -vvv -f https://eth-mainnet.g.alchemy.com/v2/[ALCHEMY_API_KEY]
 
 ### Tests
 
-You can run tests by using the following command:
+You can run tests by using the following command (can also be used with Infura's mainnet RPC URL):
 
 ```bash
 forge test -vvv -f https://eth-mainnet.g.alchemy.com/v2/[ALCHEMY_API_KEY]

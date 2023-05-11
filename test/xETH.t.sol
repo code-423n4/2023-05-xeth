@@ -7,10 +7,10 @@ import {MockErc20} from "./mocks/MockERC20.sol";
 import {console} from "./utils/Console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {ICurveFactory} from "../interfaces/ICurveFactory.sol";
-import {ICurvePool} from "../interfaces/ICurvePool.sol";
-import {xETH as xETH_contract} from "../xETH.sol";
-import {xETH_AMO} from "../AMO2.sol";
+import {ICurveFactory} from "src/interfaces/ICurveFactory.sol";
+import {ICurvePool} from "src/interfaces/ICurvePool.sol";
+import {xETH as xETH_contract} from "src/xETH.sol";
+import {xETH_AMO} from "src/AMO2.sol";
 
 contract xETHTest is DSTest {
     Vm internal immutable vm = Vm(HEVM_ADDRESS);

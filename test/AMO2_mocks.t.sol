@@ -8,10 +8,10 @@ import {console} from "./utils/Console.sol";
 import {MockCVXStaker} from "./mocks/MockCVXStaker.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-import {ICurveFactory} from "../interfaces/ICurveFactory.sol";
-import {ICurvePool} from "../interfaces/ICurvePool.sol";
-import {xETH as xETH_contract} from "../xETH.sol";
-import {xETH_AMO} from "../AMO2.sol";
+import {ICurveFactory} from "src/interfaces/ICurveFactory.sol";
+import {ICurvePool} from "src/interfaces/ICurvePool.sol";
+import {xETH as xETH_contract} from "src/xETH.sol";
+import {xETH_AMO} from "src/AMO2.sol";
 
 contract MockAMO is xETH_AMO {
     constructor(
