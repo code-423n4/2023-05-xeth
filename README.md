@@ -103,6 +103,10 @@ The amounts of lpBurn and xETH mint comes from an offchain bot called defender. 
 It is pretty much a fork of aura staker: https://etherscan.io/address/0xDaAC0A9818aFA6f8Fb4672Dc8284940B169c96e8 and it stakes lp token into a convex pool and helps in recovery of rewards, withdrawls, etc.
 
 
+### Rebalance Defender (not a contract)
+
+It is a role assigned to an off-chain bot that provides quotes for rebalancing up and down. It's quote is checked against a quote provided by the AMO contract with higher slippage to ensure that the provided quote isn't malicious.
+
 
 ## Setup Instructions
 
