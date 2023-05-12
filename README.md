@@ -9,7 +9,7 @@
   - Scout awards: $500 USDC
   - Mitigation review contest: $6,500 USDC
 - Join [C4 Discord](https://discord.gg/code4rena) to register
-- Submit findings [using the C4 form](https://code4rena.com/contests/2023-05-xeth-contest/submit)
+- Submit findings [using the C4 form](https://code4rena.com/contests/2023-05-xeth-versus-contest/submit)
 - [Read our guidelines for more details](https://docs.code4rena.com/roles/wardens)
 - Starts May 12, 2023 20:00 UTC
 - Ends May 15, 2023 20:00 UTC
