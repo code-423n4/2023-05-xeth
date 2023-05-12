@@ -5,7 +5,7 @@ import "@openzeppelin-contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin-contracts/access/AccessControl.sol";
 import "./interfaces/ICurvePool.sol";
-import {xETH as xETH_CONTRACT} from "./xETH.sol";
+import {IXETH} from "./interfaces/IXETH.sol";
 import {CVXStaker} from "./CVXStaker.sol";
 
 contract xETH_AMO is AccessControl {
@@ -126,7 +126,7 @@ contract xETH_AMO is AccessControl {
     uint256 public immutable stETHIndex;
 
     /// @dev xETH is the xETH token contract
-    xETH_CONTRACT public immutable xETH;
+    IXETH public immutable xETH;
 
     /// @dev stETH is the stETH token contract
     IERC20 public immutable stETH;
@@ -188,7 +188,7 @@ contract xETH_AMO is AccessControl {
             revert ZeroAddressProvided();
         }
 
-        xETH = xETH_CONTRACT(_xETH);
+        xETH = IXETH(_xETH);
         stETH = IERC20(_stETH);
         curvePool = ICurvePool(_curvePool);
         cvxStaker = CVXStaker(_cvxStaker);
