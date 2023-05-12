@@ -96,3 +96,30 @@ forge test -vvv -f https://eth-mainnet.g.alchemy.com/v2/[ALCHEMY_API_KEY]
 ```
 
 Please note that the tests for this codebase are _NON EXHAUSTIVE_. They do not cover every single case of the protocol, but do help in development and testing certain features / aspects of the code.
+
+
+## Scoping Details 
+```
+- If you have a public code repo, please share it here:  
+- How many contracts are in scope?: 4  
+- Total SLoC for these contracts?:  636
+- How many external imports are there?:  3
+- How many separate interfaces and struct definitions are there for the contracts within scope?:  3+4
+- Does most of your code generally use composition or inheritance?:   Composition
+- How many external calls?:   5
+- What is the overall line coverage percentage provided by your tests?:  68
+- Is there a need to understand a separate part of the codebase / get context in order to audit this part of the protocol?:   false
+- Please describe required context:   n/a
+- Does it use an oracle?:  no
+- Does the token conform to the ERC20 standard?:  true
+- Are there any novel or unique curve logic or mathematical models?: It doesn't really use any novel logic, it does some calculations on top of a curve pool for adding/removing liquidity. that's it.
+- Does it use a timelock function?:  
+- Is it an NFT?: 
+- Does it have an AMM?:   true
+- Is it a fork of a popular project?:   false
+- Does it use rollups?:   
+- Is it multi-chain?:  
+- Does it use a side-chain?: false
+- Is this fresh code or have they been audited: fresh
+- Describe any specific areas you would like addressed.: Please try to break the rebalancing logic (or suggest better implementations) + the drip mechanism of wxETH.
+```
