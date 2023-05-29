@@ -270,6 +270,6 @@ contract AMOAdminTest is DSTest {
             currentBalanceShouldBe
         );
 
-        vm.stopPrank();
+        // vm.stopPrank();
     }
 }

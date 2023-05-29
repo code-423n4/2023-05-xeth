@@ -37,14 +37,14 @@ contract MockAMO is xETH_AMO {
     }
 
     function _bestRebalanceUpQuote(
-        RebalanceUpQuote memory defenderQuote
-    ) public view returns (RebalanceUpQuote memory) {
+        RebalanceUpQuote calldata defenderQuote
+    ) public view returns (uint256) {
         return bestRebalanceUpQuote(defenderQuote);
     }
 
     function _bestRebalanceDownQuote(
-        RebalanceDownQuote memory defenderQuote
-    ) public view returns (RebalanceDownQuote memory) {
+        RebalanceDownQuote calldata defenderQuote
+    ) public view returns (uint256) {
         return bestRebalanceDownQuote(defenderQuote);
     }
 }
@@ -209,22 +209,22 @@ contract AMORebalancingTest is DSTest {
         xETH_AMO.RebalanceUpQuote memory defenderQuote = xETH_AMO
             .RebalanceUpQuote(lpBurn, minXethRemoved);
 
-        xETH_AMO.RebalanceUpQuote memory bestQuote = AMO._bestRebalanceUpQuote(
+        uint256 min_xETHReceived = AMO._bestRebalanceUpQuote(
             defenderQuote
         );
 
-        assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
-        assertEq(bestQuote.min_xETHReceived, defenderQuote.min_xETHReceived);
+        // assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
+        assertEq(min_xETHReceived, defenderQuote.min_xETHReceived);
 
         bps = 120E14; // 120bps
         minXethRemoved = (xETHRemoved * (1E18 - bps)) / 1E18;
 
         defenderQuote = xETH_AMO.RebalanceUpQuote(lpBurn, minXethRemoved);
 
-        bestQuote = AMO._bestRebalanceUpQuote(defenderQuote);
+        min_xETHReceived = AMO._bestRebalanceUpQuote(defenderQuote);
 
-        assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
-        assertTrue(bestQuote.min_xETHReceived > defenderQuote.min_xETHReceived);
+        // assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
+        assertTrue(min_xETHReceived > defenderQuote.min_xETHReceived);
     }
 
     function testBestRebalanceDownQuote() public {
@@ -252,20 +252,20 @@ contract AMORebalancingTest is DSTest {
         xETH_AMO.RebalanceDownQuote memory defenderQuote = xETH_AMO
             .RebalanceDownQuote(dA, minLpOut);
 
-        xETH_AMO.RebalanceDownQuote memory bestQuote = AMO
+        uint256 minLpReceived = AMO
             ._bestRebalanceDownQuote(defenderQuote);
 
-        assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
-        assertEq(bestQuote.minLpReceived, defenderQuote.minLpReceived);
+        // assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
+        assertEq(minLpReceived, defenderQuote.minLpReceived);
 
         bps = 120E14; // 120bps
         minLpOut = (((dA * 1E18) / vp) * (1E18 - bps)) / 1E18;
 
         defenderQuote = xETH_AMO.RebalanceDownQuote(dA, minLpOut);
 
-        bestQuote = AMO._bestRebalanceDownQuote(defenderQuote);
+        minLpReceived = AMO._bestRebalanceDownQuote(defenderQuote);
 
-        assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
-        assertTrue(bestQuote.minLpReceived > defenderQuote.minLpReceived);
+        // assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
+        assertTrue(minLpReceived > defenderQuote.minLpReceived);
     }
 }

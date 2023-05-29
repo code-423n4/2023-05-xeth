@@ -237,7 +237,7 @@ contract xETH_AMO is AccessControl {
      * @notice The rebalance operation can only be performed after the cooldown period has elapsed.
      */
     function rebalanceUp(
-        RebalanceUpQuote memory quote
+        RebalanceUpQuote calldata quote
     )
         external
         onlyRole(REBALANCE_DEFENDER_ROLE)
@@ -251,19 +251,21 @@ contract xETH_AMO is AccessControl {
 
         if (quote.lpBurn > rebalanceUpCap) revert RebalanceUpCapExceeded();
 
-        quote = bestRebalanceUpQuote(quote);
+        uint256 min_xETHReceived = bestRebalanceUpQuote(quote);
 
-        uint256 amoLpBal = cvxStaker.stakedBalance();
+        CVXStaker cachedCvxStaker = cvxStaker;
+
+        uint256 amoLpBal = cachedCvxStaker.stakedBalance();
 
         // if (amoLpBal == 0 || quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
         if (quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
 
-        cvxStaker.withdrawAndUnwrap(quote.lpBurn, false, address(this));
+        cachedCvxStaker.withdrawAndUnwrap(quote.lpBurn, false, address(this));
 
         xETHReceived = curvePool.remove_liquidity_one_coin(
             quote.lpBurn,
             int128(int(xETHIndex)),
-            quote.min_xETHReceived
+            min_xETHReceived
         );
 
         xETH.burnShares(xETHReceived);
@@ -284,7 +286,7 @@ contract xETH_AMO is AccessControl {
      * @notice The rebalance operation can only be performed after the cooldown period has elapsed.
      */
     function rebalanceDown(
-        RebalanceDownQuote memory quote
+        RebalanceDownQuote calldata quote
     )
         external
         onlyRole(REBALANCE_DEFENDER_ROLE)
@@ -299,7 +301,7 @@ contract xETH_AMO is AccessControl {
         if (quote.xETHAmount > rebalanceDownCap)
             revert RebalanceDownCapExceeded();
 
-        quote = bestRebalanceDownQuote(quote);
+        uint256 minLpReceived = bestRebalanceDownQuote(quote);
 
         xETH.mintShares(quote.xETHAmount);
 
@@ -308,13 +310,15 @@ contract xETH_AMO is AccessControl {
 
         IERC20(address(xETH)).approve(address(curvePool), quote.xETHAmount);
 
-        lpAmountOut = curvePool.add_liquidity(amounts, quote.minLpReceived);
+        lpAmountOut = curvePool.add_liquidity(amounts, minLpReceived);
+
+        CVXStaker cachedCvxStaker = cvxStaker;
 
         IERC20(address(curvePool)).safeTransfer(
-            address(cvxStaker),
+            address(cachedCvxStaker),
             lpAmountOut
         );
-        cvxStaker.depositAndStake(lpAmountOut);
+        cachedCvxStaker.depositAndStake(lpAmountOut);
 
         emit RebalanceDownFinished(quote, lpAmountOut);
     }
@@ -333,21 +337,22 @@ contract xETH_AMO is AccessControl {
      * @notice if its not, the contractQuote gets executed as a safeguard, reducing the risk of a large sandwich
      */
     function bestRebalanceUpQuote(
-        RebalanceUpQuote memory defenderQuote
-    ) internal view returns (RebalanceUpQuote memory) {
-        RebalanceUpQuote memory bestQuote;
+        RebalanceUpQuote calldata defenderQuote
+    ) internal view returns (uint256) {
+        // RebalanceUpQuote memory bestQuote;
         uint256 vp = curvePool.get_virtual_price();
 
         /// @dev first lets fill the bestQuote with the contractQuote
-        bestQuote.lpBurn = defenderQuote.lpBurn;
-        bestQuote.min_xETHReceived = applySlippage(
+        // bestQuote.lpBurn = defenderQuote.lpBurn;
+        uint256 min_xETHReceived = applySlippage(
             (vp * defenderQuote.lpBurn) / BASE_UNIT
         );
 
-        if (defenderQuote.min_xETHReceived > bestQuote.min_xETHReceived)
-            bestQuote.min_xETHReceived = defenderQuote.min_xETHReceived;
+        if (defenderQuote.min_xETHReceived > min_xETHReceived)
+            // bestQuote.min_xETHReceived = defenderQuote.min_xETHReceived 
+            return defenderQuote.min_xETHReceived;
 
-        return bestQuote;
+        return min_xETHReceived;
     }
 
     /**
@@ -358,21 +363,22 @@ contract xETH_AMO is AccessControl {
      * @notice if its not, the contractQuote gets executed as a safeguard, reducing the risk of a large sandwich
      */
     function bestRebalanceDownQuote(
-        RebalanceDownQuote memory defenderQuote
-    ) internal view returns (RebalanceDownQuote memory) {
-        RebalanceDownQuote memory bestQuote;
+        RebalanceDownQuote calldata defenderQuote
+    ) internal view returns (uint256) {
+        // RebalanceDownQuote memory bestQuote;
         uint256 vp = curvePool.get_virtual_price();
 
         /// @dev first lets fill the bestQuote with the contractQuote
-        bestQuote.xETHAmount = defenderQuote.xETHAmount;
-        bestQuote.minLpReceived = applySlippage(
+        // bestQuote.xETHAmount = defenderQuote.xETHAmount;
+        uint256 minLpReceived = applySlippage(
             (BASE_UNIT * defenderQuote.xETHAmount) / vp
         );
 
-        if (defenderQuote.minLpReceived > bestQuote.minLpReceived)
-            bestQuote.minLpReceived = defenderQuote.minLpReceived;
+        if (defenderQuote.minLpReceived > minLpReceived)
+            // bestQuote.minLpReceived = defenderQuote.minLpReceived;
+            return defenderQuote.minLpReceived;
 
-        return bestQuote;
+        return minLpReceived;
     }
 
     /**
@@ -388,11 +394,13 @@ contract xETH_AMO is AccessControl {
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newDefender == address(0)) revert ZeroAddressProvided();
 
-        if (defender != address(0)) {
-            _revokeRole(REBALANCE_DEFENDER_ROLE, defender);
+        address cachedDefender = defender;
+
+        if (cachedDefender != address(0)) {
+            _revokeRole(REBALANCE_DEFENDER_ROLE, cachedDefender);
         }
 
-        emit DefenderUpdated(defender, newDefender);
+        emit DefenderUpdated(cachedDefender, newDefender);
 
         defender = newDefender;
         _grantRole(REBALANCE_DEFENDER_ROLE, newDefender);
