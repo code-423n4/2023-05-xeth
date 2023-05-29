@@ -40,6 +40,7 @@ contract WrappedXETH is ERC20, Ownable {
     error AmountZeroProvided();
     error DripAlreadyRunning();
     error DripAlreadyStopped();
+    error CantMintZeroShares();
 
     /* -------------------------- Constants and Storage ------------------------- */
 
@@ -94,6 +95,10 @@ contract WrappedXETH is ERC20, Ownable {
     function stake(uint256 xETHAmount) external drip returns (uint256) {
         /// @dev calculate the amount of wxETH to mint
         uint256 mintAmount = previewStake(xETHAmount);
+
+        if (mintAmount == 0) {
+          revert CantMintZeroShares();
+        }
 
         /// @dev transfer xETH from the user to the contract
         xETH.safeTransferFrom(msg.sender, address(this), xETHAmount);
