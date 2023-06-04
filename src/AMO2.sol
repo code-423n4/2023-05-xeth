@@ -552,8 +552,8 @@ contract xETH_AMO is AccessControl {
         amounts[xETHIndex] = xETHAmount;
         amounts[stETHIndex] = stETHAmount;
 
-        IERC20(address(xETH)).safeApprove(address(curvePool), xETHAmount);
-        stETH.safeApprove(address(curvePool), stETHAmount);
+        IERC20(address(xETH)).approve(address(curvePool), xETHAmount);
+        stETH.approve(address(curvePool), stETHAmount);
 
         lpOut = curvePool.add_liquidity(amounts, minLpOut);
 
@@ -578,7 +578,7 @@ contract xETH_AMO is AccessControl {
 
         amounts[stETHIndex] = stETHAmount;
 
-        stETH.safeApprove(address(curvePool), stETHAmount);
+        stETH.approve(address(curvePool), stETHAmount);
 
         lpOut = curvePool.add_liquidity(amounts, minLpOut);
 
