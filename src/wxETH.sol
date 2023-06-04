@@ -227,7 +227,7 @@ contract WrappedXETH is ERC20, Ownable {
     /// @dev the lockedFunds and lastReport variables
     function _accrueDrip() private {
         /// @dev if drip is disabled, no need to accrue
-        if (!dripEnabled) return;
+        if (!dripEnabled || totalSupply() == 0) return;
 
         /// @dev blockDelta is the difference between now and last accrual
         uint256 blockDelta = block.number - lastReport;
