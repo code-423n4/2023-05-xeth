@@ -112,6 +112,8 @@ contract xETH_AMO is AccessControl {
     /// @param newThreshold The new rebalance down threshold.
     event SetRebalanceDownThreshold(uint256 oldThreshold, uint256 newThreshold);
 
+    event RecoveredToken(address token, address to, uint256 amount);
+
     /// @dev REBALANCE_DEFENDER_ROLE is the role that allows the defender to call rebalance()
     bytes32 public constant REBALANCE_DEFENDER_ROLE =
         keccak256("REBALANCE_DEFENDER_ROLE");

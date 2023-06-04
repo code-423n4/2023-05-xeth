@@ -39,6 +39,7 @@ contract CVXStaker is Ownable {
     event SetOperator(address operator);
     event RecoveredToken(address token, address to, uint256 amount);
     event SetRewardsRecipient(address recipient);
+    event SetRewardTokens(address[] newTokens);
 
     constructor(
         address _operator,
@@ -90,6 +91,12 @@ contract CVXStaker is Ownable {
         rewardsRecipient = _recipeint;
 
         emit SetRewardsRecipient(_recipeint);
+    }
+
+    function setRewardTokens(address[] calldata newTokens) external onlyOwner {
+      rewardTokens = newTokens;
+
+      emit SetRewardTokens(newTokens);
     }
 
     /**
@@ -188,15 +195,32 @@ contract CVXStaker is Ownable {
             address(this),
             claimExtras
         );
-        if (rewardsRecipient != address(0)) {
-            for (uint i = 0; i < rewardTokens.length; i++) {
-                uint256 balance = IERC20(rewardTokens[i]).balanceOf(
-                    address(this)
-                );
-                IERC20(rewardTokens[i]).safeTransfer(rewardsRecipient, balance);
-            }
-        }
     }
+
+    error OutOfBounds(uint8 check);
+
+    function transferReward(uint256 initialIndex, uint256 lastIndex) external {
+      if (initialIndex >= lastIndex) {
+        revert OutOfBounds(0);
+      }
+      if (lastIndex > rewardTokens.length) {
+        revert OutOfBounds(1);
+      }
+
+
+      if (rewardsRecipient != address(0)) {
+        for (uint i = initialIndex; i < lastIndex; ) {
+            uint256 balance = IERC20(rewardTokens[i]).balanceOf(
+                address(this)
+            );
+            if (balance != 0) {
+              IERC20(rewardTokens[i]).safeTransfer(rewardsRecipient, balance);
+            }
+            unchecked {++i;}
+        }
+      }
+    }
+
 
     /**
      * @dev Returns the current staked balance of the contract.
