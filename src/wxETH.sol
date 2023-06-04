@@ -148,7 +148,7 @@ contract WrappedXETH is ERC20, Ownable {
     /// @notice this function can only be called by the owner
     /// @notice this function can only be called if the amount provided 
     /// @dev if amount is 0, revert.
-    function addLockedFunds(uint256 amount) external onlyOwner drip {
+    function addLockedFunds(uint256 amount) external onlyOwner {
         /// @dev if amount or _dripRatePerBlock is 0, revert.
         if (amount == 0) revert AmountZeroProvided();
 
@@ -160,6 +160,9 @@ contract WrappedXETH is ERC20, Ownable {
         lockedFunds = cachedLockedFunds;
 
         emit LockedFundsAdded(amount, cachedLockedFunds);
+
+        /// @dev drip after funds have been added
+        _accrueDrip();
     }
 
     function setDripRate(uint256 newDripRatePerBlock) external onlyOwner drip {
