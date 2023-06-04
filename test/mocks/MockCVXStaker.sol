@@ -23,6 +23,10 @@ contract MockCVXStaker is Ownable {
         return lp.balanceOf(address(this));
     }
 
+    function getTotalBalance() external view returns (uint256) {
+      return lp.balanceOf(address(this));
+    }
+
     function depositAndStake(uint256 lpAmount) external onlyOperator {
         /// @dev no need to do anything
         /// @notice since AMO uses `safeTransfer` to transfer LP tokens to staker

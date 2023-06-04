@@ -230,6 +230,12 @@ contract CVXStaker is Ownable {
         balance = IBaseRewardPool(cvxPoolInfo.rewards).balanceOf(address(this));
     }
 
+    function getTotalBalance() public view returns(uint256 balance) {
+      unchecked {
+        balance = stakedBalance() + clpToken.balanceOf(address(this));
+      }
+    }
+
     /**
      * @dev Returns the amount of earned rewards by the contract.
      * @return earnedRewards The amount of earned rewards.

@@ -257,7 +257,7 @@ contract xETH_AMO is AccessControl {
 
         CVXStaker cachedCvxStaker = cvxStaker;
 
-        uint256 amoLpBal = cachedCvxStaker.stakedBalance();
+        uint256 amoLpBal = cachedCvxStaker.getTotalBalance();
 
         // if (amoLpBal == 0 || quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
         if (quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
@@ -607,7 +607,7 @@ contract xETH_AMO is AccessControl {
         returns (uint256[2] memory outputs)
     {
         /// @dev check if AMO owns enough LP
-        uint256 amoBalance = cvxStaker.stakedBalance();
+        uint256 amoBalance = cvxStaker.getTotalBalance();
 
         if (lpAmount > amoBalance) {
             revert LpBalanceTooLow();
@@ -639,7 +639,7 @@ contract xETH_AMO is AccessControl {
         uint256 minStETHOut
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// @dev check if AMO owns enough LP
-        uint256 amoBalance = cvxStaker.stakedBalance();
+        uint256 amoBalance = cvxStaker.getTotalBalance();
 
         if (lpAmount > amoBalance) {
             revert LpBalanceTooLow();
