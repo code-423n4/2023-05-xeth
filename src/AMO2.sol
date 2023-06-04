@@ -657,4 +657,20 @@ contract xETH_AMO is AccessControl {
 
         stETH.safeTransfer(msg.sender, output);
     }
+
+    /**
+     * @notice Recover any token from AMO
+     * @param token Token to recover
+     * @param to Recipient address
+     * @param amount Amount to recover
+     */
+    function recoverToken(
+        address token,
+        address to,
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
+
+        emit RecoveredToken(token, to, amount);
+    }
 }

@@ -93,7 +93,7 @@ contract CVXStaker is Ownable {
     }
 
     /**
-     * @notice Recover any token from AMO
+     * @notice Recover any token from cvxStaker 
      * @param token Token to recover
      * @param to Recipient address
      * @param amount Amount to recover
@@ -163,18 +163,19 @@ contract CVXStaker is Ownable {
     /**
      * @dev Withdraws all staked tokens from the reward pool and unwraps them to the original tokens.
      * @param claim A boolean indicating whether to claim rewards before withdrawing.
-     * @param sendToOperator A boolean indicating whether to send the unwrapped tokens to the operator.
+     * @param sendToOwner A boolean indicating whether to send the unwrapped tokens to the owner.
      * If false, the tokens will remain in the contract.
      * Only the contract owner can call this function.
      */
     function withdrawAllAndUnwrap(
         bool claim,
-        bool sendToOperator
+        bool sendToOwner
     ) external onlyOwner {
         IBaseRewardPool(cvxPoolInfo.rewards).withdrawAllAndUnwrap(claim);
-        if (sendToOperator) {
+        if (sendToOwner) {
             uint256 totalBalance = clpToken.balanceOf(address(this));
-            clpToken.safeTransfer(operator, totalBalance);
+            /// @dev msg.sender is the owner, due to onlyOwner modifier
+            clpToken.safeTransfer(msg.sender, totalBalance);
         }
     }
 
