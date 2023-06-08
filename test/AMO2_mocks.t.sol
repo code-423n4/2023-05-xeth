@@ -47,6 +47,10 @@ contract MockAMO is xETH_AMO {
     ) public view returns (uint256) {
         return bestRebalanceDownQuote(defenderQuote);
     }
+
+    function _applySlippage(uint256 amount, bool up) public view returns(uint256) {
+      return applySlippage(amount, up ? upSlippage : downSlippage);
+    }
 }
 
 contract AMORebalancingTest is DSTest {
@@ -121,6 +125,16 @@ contract AMORebalancingTest is DSTest {
         vm.stopPrank();
     }
 
+    function testApplySlippage() public {
+      uint256 amt = 1E18 * 3.1415926536;
+
+      uint256 value = AMO._applySlippage(amt, true);
+      assertEq(value, amt);
+
+      value = AMO._applySlippage(amt, false);
+      assertEq(value, (amt * (1E18 - AMO.downSlippage())) / 1E18);
+    }
+
     function testCoolDown() public {
         uint256 cp = 1000;
 
@@ -188,6 +202,7 @@ contract AMORebalancingTest is DSTest {
 
     function testBestRebalanceUpQuote() public {
         vm.startPrank(owner);
+        AMO.setSlippage(100 * 1E14, 100 * 1E14);
         AMO.setRebalanceUpCap(40e18);
         stETH.approve(address(AMO), 10e18);
         AMO.addLiquidity(10e18, 40e18, 50 * 0.998e18);

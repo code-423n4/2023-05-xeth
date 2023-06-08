@@ -23,8 +23,6 @@ contract xETH_AMO is AccessControl {
     /// @notice Thrown when a function is called with a zero value, which is not allowed.
     error ZeroValueProvided();
 
-    /// @notice Thrown when an invalid slippage value is provided, outside the allowed range.
-    error InvalidSlippageBPS();
 
     /// @notice Thrown when a rebalance attempt is made before the cooldown period has finished.
     error CooldownNotFinished();
@@ -65,12 +63,16 @@ contract xETH_AMO is AccessControl {
     /// @param newDefender The new defender address.
     event DefenderUpdated(address oldDefender, address newDefender);
 
-    /// @notice Emitted when the maxSlippageBPS is updated.
-    /// @param oldMaxSlippageBPS The previous max slippage value.
-    /// @param newMaxSlippageBPS The new max slippage value.
-    event MaxSlippageBPSUpdated(
-        uint256 oldMaxSlippageBPS,
-        uint256 newMaxSlippageBPS
+    /// @notice Emitted when the upSlippage and downSlippage parameters are updated
+    /// @param oldUpSlippage The old slippage value for rebalanceUp.
+    /// @param newUpSlippage The new slippage value for rebalanceUp.
+    /// @param oldDownSlippage The old slippage value for rebalanceDown.
+    /// @param newDownSlippage The new slippage value for rebalanceDown.
+    event SlippageUpdated(
+      uint256 oldUpSlippage,
+      uint256 newUpSlippage,
+      uint256 oldDownSlippage,
+      uint256 newDownSlippage
     );
 
     /// @notice Emitted when the rebalanceUpCap is updated.
@@ -136,9 +138,13 @@ contract xETH_AMO is AccessControl {
     /// @dev curvePool is the Curve pool contract
     ICurvePool public immutable curvePool;
 
-    /// @dev maxSlippageBPS is the maximum slippage allowed when rebalancing
+    /// @dev upSlippage is the maximum slippage allowed when rebalancing up
     /// @notice 1E14 = 1 BPS
-    uint256 public maxSlippageBPS = 100 * 1E14;
+    uint256 public upSlippage;
+    
+    /// @dev downSlippage is the maximum slippage allowed when rebalancing down 
+    /// @notice 1E14 = 1 BPS
+    uint256 public downSlippage = 100 * 1E14;
 
     /// @dev rebalanceUpCap is the maximum amount of xETH-stETH LP that can be burnt in a single rebalance
     uint256 public rebalanceUpCap;
@@ -325,9 +331,9 @@ contract xETH_AMO is AccessControl {
         emit RebalanceDownFinished(quote, lpAmountOut);
     }
 
-    /// @dev applySlippage applies the maxSlippageBPS to the amount provided
-    function applySlippage(uint256 amount) internal view returns (uint256) {
-        return (amount * (BASE_UNIT - maxSlippageBPS)) / BASE_UNIT;
+    /// @dev applySlippage applies the amount of slippage given 
+    function applySlippage(uint256 amount, uint256 slippage) pure internal returns (uint256) {
+        return slippage == 0 ? amount : (amount * (BASE_UNIT - slippage)) / BASE_UNIT;
     }
 
     /**
@@ -347,7 +353,8 @@ contract xETH_AMO is AccessControl {
         /// @dev first lets fill the bestQuote with the contractQuote
         // bestQuote.lpBurn = defenderQuote.lpBurn;
         uint256 min_xETHReceived = applySlippage(
-            (vp * defenderQuote.lpBurn) / BASE_UNIT
+            (vp * defenderQuote.lpBurn) / BASE_UNIT,
+            upSlippage
         );
 
         if (defenderQuote.min_xETHReceived > min_xETHReceived)
@@ -373,7 +380,8 @@ contract xETH_AMO is AccessControl {
         /// @dev first lets fill the bestQuote with the contractQuote
         // bestQuote.xETHAmount = defenderQuote.xETHAmount;
         uint256 minLpReceived = applySlippage(
-            (BASE_UNIT * defenderQuote.xETHAmount) / vp
+            (BASE_UNIT * defenderQuote.xETHAmount) / vp,
+            downSlippage
         );
 
         if (defenderQuote.minLpReceived > minLpReceived)
@@ -409,24 +417,22 @@ contract xETH_AMO is AccessControl {
     }
 
     /**
-     * @dev Sets the maximum allowable slippage in basis points for trading.
-     * @param newMaxSlippageBPS The new maximum slippage in basis points to be set.
+     * @dev Sets the slippage in basis points for trading.
+     * @param newUpSlippage The new maximum slippage in basis points for upward price movement to be set.
+     * @param newDownSlippage The new maximum slippage in basis points for downward price movement to be set.
      * @notice 1 BPS = 1E14
      * @notice Only callable by a user with the DEFAULT_ADMIN_ROLE
      * @notice The new maximum slippage must be between 0.06% and 15% (in basis points).
-     * @notice Emits a `MaxSlippageBPSUpdated` event.
+     * @notice Emits a `SlippageUpdated` event.
      */
-    function setMaxSlippageBPS(
-        uint256 newMaxSlippageBPS
+    function setSlippage(
+      uint256 newUpSlippage,
+      uint256 newDownSlippage
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        /// @dev the allowed minimum slippage is 0.06% and the maximum slippage is 15%
-        if (newMaxSlippageBPS < 6E14 || newMaxSlippageBPS > 1500E14) {
-            revert InvalidSlippageBPS();
-        }
+        emit SlippageUpdated(upSlippage, newUpSlippage, downSlippage, newDownSlippage);
 
-        emit MaxSlippageBPSUpdated(maxSlippageBPS, newMaxSlippageBPS);
-
-        maxSlippageBPS = newMaxSlippageBPS;
+        upSlippage = newUpSlippage;
+        downSlippage = newDownSlippage;
     }
 
     /**
