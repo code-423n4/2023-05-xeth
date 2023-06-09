@@ -185,7 +185,7 @@ contract xETH_AMO is AccessControl {
         address _stETH,
         address _curvePool,
         address _cvxStaker,
-        bool isXETHToken0
+        uint256 _xETHIndex
     ) {
         if (
             _xETH == address(0) ||
@@ -201,8 +201,8 @@ contract xETH_AMO is AccessControl {
         curvePool = ICurvePool(_curvePool);
         cvxStaker = CVXStaker(_cvxStaker);
 
-        xETHIndex = isXETHToken0 ? 0 : 1;
-        stETHIndex = isXETHToken0 ? 1 : 0;
+        xETHIndex = _xETHIndex;
+        stETHIndex = 1 - xETHIndex;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }

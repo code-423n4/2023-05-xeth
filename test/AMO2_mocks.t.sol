@@ -19,14 +19,14 @@ contract MockAMO is xETH_AMO {
         address stETHAddress,
         address curvePoolAddress,
         address cvxStakerAddress,
-        bool isXETHToken0
+        uint256 xETHIndex
     )
         xETH_AMO(
             xETHAddress,
             stETHAddress,
             curvePoolAddress,
             cvxStakerAddress,
-            isXETHToken0
+            xETHIndex
         )
     {}
 
@@ -112,7 +112,7 @@ contract AMORebalancingTest is DSTest {
             address(stETH),
             pool,
             address(cvxStaker),
-            true
+            0
         );
         AMO.setRebalanceDefender(address(bot));
 

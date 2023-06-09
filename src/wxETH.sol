@@ -196,9 +196,6 @@ contract WrappedXETH is ERC20, Ownable {
 
         dripEnabled = false;
 
-        /// @dev set the drip lastReport to current block
-        lastReport = block.number;
-
         emit DripStopped();
     }
 
