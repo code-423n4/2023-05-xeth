@@ -23,6 +23,8 @@ contract xETH_AMO is AccessControl {
     /// @notice Thrown when a function is called with a zero value, which is not allowed.
     error ZeroValueProvided();
 
+    /// @notice Thrown when the setSlippage values are invalid
+    error InvalidSetSlippage();
 
     /// @notice Thrown when a rebalance attempt is made before the cooldown period has finished.
     error CooldownNotFinished();
@@ -429,6 +431,10 @@ contract xETH_AMO is AccessControl {
       uint256 newUpSlippage,
       uint256 newDownSlippage
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newUpSlippage >= BASE_UNIT || newDownSlippage >= BASE_UNIT)
+          revert InvalidSetSlippage();
+
+
         emit SlippageUpdated(upSlippage, newUpSlippage, downSlippage, newDownSlippage);
 
         upSlippage = newUpSlippage;
