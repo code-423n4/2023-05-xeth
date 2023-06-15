@@ -23,8 +23,8 @@ contract xETH_AMO is AccessControl {
     /// @notice Thrown when a function is called with a zero value, which is not allowed.
     error ZeroValueProvided();
 
-    /// @notice Thrown when an invalid slippage value is provided, outside the allowed range.
-    error InvalidSlippageBPS();
+    /// @notice Thrown when the setSlippage values are invalid
+    error InvalidSetSlippage();
 
     /// @notice Thrown when a rebalance attempt is made before the cooldown period has finished.
     error CooldownNotFinished();
@@ -65,12 +65,16 @@ contract xETH_AMO is AccessControl {
     /// @param newDefender The new defender address.
     event DefenderUpdated(address oldDefender, address newDefender);
 
-    /// @notice Emitted when the maxSlippageBPS is updated.
-    /// @param oldMaxSlippageBPS The previous max slippage value.
-    /// @param newMaxSlippageBPS The new max slippage value.
-    event MaxSlippageBPSUpdated(
-        uint256 oldMaxSlippageBPS,
-        uint256 newMaxSlippageBPS
+    /// @notice Emitted when the upSlippage and downSlippage parameters are updated
+    /// @param oldUpSlippage The old slippage value for rebalanceUp.
+    /// @param newUpSlippage The new slippage value for rebalanceUp.
+    /// @param oldDownSlippage The old slippage value for rebalanceDown.
+    /// @param newDownSlippage The new slippage value for rebalanceDown.
+    event SlippageUpdated(
+      uint256 oldUpSlippage,
+      uint256 newUpSlippage,
+      uint256 oldDownSlippage,
+      uint256 newDownSlippage
     );
 
     /// @notice Emitted when the rebalanceUpCap is updated.
@@ -112,6 +116,8 @@ contract xETH_AMO is AccessControl {
     /// @param newThreshold The new rebalance down threshold.
     event SetRebalanceDownThreshold(uint256 oldThreshold, uint256 newThreshold);
 
+    event RecoveredToken(address token, address to, uint256 amount);
+
     /// @dev REBALANCE_DEFENDER_ROLE is the role that allows the defender to call rebalance()
     bytes32 public constant REBALANCE_DEFENDER_ROLE =
         keccak256("REBALANCE_DEFENDER_ROLE");
@@ -134,9 +140,13 @@ contract xETH_AMO is AccessControl {
     /// @dev curvePool is the Curve pool contract
     ICurvePool public immutable curvePool;
 
-    /// @dev maxSlippageBPS is the maximum slippage allowed when rebalancing
+    /// @dev upSlippage is the maximum slippage allowed when rebalancing up
     /// @notice 1E14 = 1 BPS
-    uint256 public maxSlippageBPS = 100 * 1E14;
+    uint256 public upSlippage;
+    
+    /// @dev downSlippage is the maximum slippage allowed when rebalancing down 
+    /// @notice 1E14 = 1 BPS
+    uint256 public downSlippage = 100 * 1E14;
 
     /// @dev rebalanceUpCap is the maximum amount of xETH-stETH LP that can be burnt in a single rebalance
     uint256 public rebalanceUpCap;
@@ -177,7 +187,7 @@ contract xETH_AMO is AccessControl {
         address _stETH,
         address _curvePool,
         address _cvxStaker,
-        bool isXETHToken0
+        uint256 _xETHIndex
     ) {
         if (
             _xETH == address(0) ||
@@ -193,8 +203,8 @@ contract xETH_AMO is AccessControl {
         curvePool = ICurvePool(_curvePool);
         cvxStaker = CVXStaker(_cvxStaker);
 
-        xETHIndex = isXETHToken0 ? 0 : 1;
-        stETHIndex = isXETHToken0 ? 1 : 0;
+        xETHIndex = _xETHIndex;
+        stETHIndex = 1 - xETHIndex;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
@@ -237,7 +247,7 @@ contract xETH_AMO is AccessControl {
      * @notice The rebalance operation can only be performed after the cooldown period has elapsed.
      */
     function rebalanceUp(
-        RebalanceUpQuote memory quote
+        RebalanceUpQuote calldata quote
     )
         external
         onlyRole(REBALANCE_DEFENDER_ROLE)
@@ -251,19 +261,21 @@ contract xETH_AMO is AccessControl {
 
         if (quote.lpBurn > rebalanceUpCap) revert RebalanceUpCapExceeded();
 
-        quote = bestRebalanceUpQuote(quote);
+        uint256 min_xETHReceived = bestRebalanceUpQuote(quote);
 
-        uint256 amoLpBal = cvxStaker.stakedBalance();
+        CVXStaker cachedCvxStaker = cvxStaker;
+
+        uint256 amoLpBal = cachedCvxStaker.getTotalBalance();
 
         // if (amoLpBal == 0 || quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
         if (quote.lpBurn > amoLpBal) revert LpBalanceTooLow();
 
-        cvxStaker.withdrawAndUnwrap(quote.lpBurn, false, address(this));
+        cachedCvxStaker.withdrawAndUnwrap(quote.lpBurn, false, address(this));
 
         xETHReceived = curvePool.remove_liquidity_one_coin(
             quote.lpBurn,
             int128(int(xETHIndex)),
-            quote.min_xETHReceived
+            min_xETHReceived
         );
 
         xETH.burnShares(xETHReceived);
@@ -284,7 +296,7 @@ contract xETH_AMO is AccessControl {
      * @notice The rebalance operation can only be performed after the cooldown period has elapsed.
      */
     function rebalanceDown(
-        RebalanceDownQuote memory quote
+        RebalanceDownQuote calldata quote
     )
         external
         onlyRole(REBALANCE_DEFENDER_ROLE)
@@ -299,7 +311,7 @@ contract xETH_AMO is AccessControl {
         if (quote.xETHAmount > rebalanceDownCap)
             revert RebalanceDownCapExceeded();
 
-        quote = bestRebalanceDownQuote(quote);
+        uint256 minLpReceived = bestRebalanceDownQuote(quote);
 
         xETH.mintShares(quote.xETHAmount);
 
@@ -308,20 +320,22 @@ contract xETH_AMO is AccessControl {
 
         IERC20(address(xETH)).approve(address(curvePool), quote.xETHAmount);
 
-        lpAmountOut = curvePool.add_liquidity(amounts, quote.minLpReceived);
+        lpAmountOut = curvePool.add_liquidity(amounts, minLpReceived);
+
+        CVXStaker cachedCvxStaker = cvxStaker;
 
         IERC20(address(curvePool)).safeTransfer(
-            address(cvxStaker),
+            address(cachedCvxStaker),
             lpAmountOut
         );
-        cvxStaker.depositAndStake(lpAmountOut);
+        cachedCvxStaker.depositAndStake(lpAmountOut);
 
         emit RebalanceDownFinished(quote, lpAmountOut);
     }
 
-    /// @dev applySlippage applies the maxSlippageBPS to the amount provided
-    function applySlippage(uint256 amount) internal view returns (uint256) {
-        return (amount * (BASE_UNIT - maxSlippageBPS)) / BASE_UNIT;
+    /// @dev applySlippage applies the amount of slippage given 
+    function applySlippage(uint256 amount, uint256 slippage) pure internal returns (uint256) {
+        return slippage == 0 ? amount : (amount * (BASE_UNIT - slippage)) / BASE_UNIT;
     }
 
     /**
@@ -333,21 +347,23 @@ contract xETH_AMO is AccessControl {
      * @notice if its not, the contractQuote gets executed as a safeguard, reducing the risk of a large sandwich
      */
     function bestRebalanceUpQuote(
-        RebalanceUpQuote memory defenderQuote
-    ) internal view returns (RebalanceUpQuote memory) {
-        RebalanceUpQuote memory bestQuote;
+        RebalanceUpQuote calldata defenderQuote
+    ) internal view returns (uint256) {
+        // RebalanceUpQuote memory bestQuote;
         uint256 vp = curvePool.get_virtual_price();
 
         /// @dev first lets fill the bestQuote with the contractQuote
-        bestQuote.lpBurn = defenderQuote.lpBurn;
-        bestQuote.min_xETHReceived = applySlippage(
-            (vp * defenderQuote.lpBurn) / BASE_UNIT
+        // bestQuote.lpBurn = defenderQuote.lpBurn;
+        uint256 min_xETHReceived = applySlippage(
+            (vp * defenderQuote.lpBurn) / BASE_UNIT,
+            upSlippage
         );
 
-        if (defenderQuote.min_xETHReceived > bestQuote.min_xETHReceived)
-            bestQuote.min_xETHReceived = defenderQuote.min_xETHReceived;
+        if (defenderQuote.min_xETHReceived > min_xETHReceived)
+            // bestQuote.min_xETHReceived = defenderQuote.min_xETHReceived 
+            return defenderQuote.min_xETHReceived;
 
-        return bestQuote;
+        return min_xETHReceived;
     }
 
     /**
@@ -358,21 +374,23 @@ contract xETH_AMO is AccessControl {
      * @notice if its not, the contractQuote gets executed as a safeguard, reducing the risk of a large sandwich
      */
     function bestRebalanceDownQuote(
-        RebalanceDownQuote memory defenderQuote
-    ) internal view returns (RebalanceDownQuote memory) {
-        RebalanceDownQuote memory bestQuote;
+        RebalanceDownQuote calldata defenderQuote
+    ) internal view returns (uint256) {
+        // RebalanceDownQuote memory bestQuote;
         uint256 vp = curvePool.get_virtual_price();
 
         /// @dev first lets fill the bestQuote with the contractQuote
-        bestQuote.xETHAmount = defenderQuote.xETHAmount;
-        bestQuote.minLpReceived = applySlippage(
-            (BASE_UNIT * defenderQuote.xETHAmount) / vp
+        // bestQuote.xETHAmount = defenderQuote.xETHAmount;
+        uint256 minLpReceived = applySlippage(
+            (BASE_UNIT * defenderQuote.xETHAmount) / vp,
+            downSlippage
         );
 
-        if (defenderQuote.minLpReceived > bestQuote.minLpReceived)
-            bestQuote.minLpReceived = defenderQuote.minLpReceived;
+        if (defenderQuote.minLpReceived > minLpReceived)
+            // bestQuote.minLpReceived = defenderQuote.minLpReceived;
+            return defenderQuote.minLpReceived;
 
-        return bestQuote;
+        return minLpReceived;
     }
 
     /**
@@ -388,35 +406,39 @@ contract xETH_AMO is AccessControl {
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newDefender == address(0)) revert ZeroAddressProvided();
 
-        if (defender != address(0)) {
-            _revokeRole(REBALANCE_DEFENDER_ROLE, defender);
+        address cachedDefender = defender;
+
+        if (cachedDefender != address(0)) {
+            _revokeRole(REBALANCE_DEFENDER_ROLE, cachedDefender);
         }
 
-        emit DefenderUpdated(defender, newDefender);
+        emit DefenderUpdated(cachedDefender, newDefender);
 
         defender = newDefender;
         _grantRole(REBALANCE_DEFENDER_ROLE, newDefender);
     }
 
     /**
-     * @dev Sets the maximum allowable slippage in basis points for trading.
-     * @param newMaxSlippageBPS The new maximum slippage in basis points to be set.
+     * @dev Sets the slippage in basis points for trading.
+     * @param newUpSlippage The new maximum slippage in basis points for upward price movement to be set.
+     * @param newDownSlippage The new maximum slippage in basis points for downward price movement to be set.
      * @notice 1 BPS = 1E14
      * @notice Only callable by a user with the DEFAULT_ADMIN_ROLE
      * @notice The new maximum slippage must be between 0.06% and 15% (in basis points).
-     * @notice Emits a `MaxSlippageBPSUpdated` event.
+     * @notice Emits a `SlippageUpdated` event.
      */
-    function setMaxSlippageBPS(
-        uint256 newMaxSlippageBPS
+    function setSlippage(
+      uint256 newUpSlippage,
+      uint256 newDownSlippage
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        /// @dev the allowed minimum slippage is 0.06% and the maximum slippage is 15%
-        if (newMaxSlippageBPS < 6E14 || newMaxSlippageBPS > 1500E14) {
-            revert InvalidSlippageBPS();
-        }
+        if (newUpSlippage >= BASE_UNIT || newDownSlippage >= BASE_UNIT)
+          revert InvalidSetSlippage();
 
-        emit MaxSlippageBPSUpdated(maxSlippageBPS, newMaxSlippageBPS);
 
-        maxSlippageBPS = newMaxSlippageBPS;
+        emit SlippageUpdated(upSlippage, newUpSlippage, downSlippage, newDownSlippage);
+
+        upSlippage = newUpSlippage;
+        downSlippage = newDownSlippage;
     }
 
     /**
@@ -542,8 +564,8 @@ contract xETH_AMO is AccessControl {
         amounts[xETHIndex] = xETHAmount;
         amounts[stETHIndex] = stETHAmount;
 
-        IERC20(address(xETH)).safeApprove(address(curvePool), xETHAmount);
-        stETH.safeApprove(address(curvePool), stETHAmount);
+        IERC20(address(xETH)).approve(address(curvePool), xETHAmount);
+        stETH.approve(address(curvePool), stETHAmount);
 
         lpOut = curvePool.add_liquidity(amounts, minLpOut);
 
@@ -568,7 +590,7 @@ contract xETH_AMO is AccessControl {
 
         amounts[stETHIndex] = stETHAmount;
 
-        stETH.safeApprove(address(curvePool), stETHAmount);
+        stETH.approve(address(curvePool), stETHAmount);
 
         lpOut = curvePool.add_liquidity(amounts, minLpOut);
 
@@ -597,7 +619,7 @@ contract xETH_AMO is AccessControl {
         returns (uint256[2] memory outputs)
     {
         /// @dev check if AMO owns enough LP
-        uint256 amoBalance = cvxStaker.stakedBalance();
+        uint256 amoBalance = cvxStaker.getTotalBalance();
 
         if (lpAmount > amoBalance) {
             revert LpBalanceTooLow();
@@ -629,7 +651,7 @@ contract xETH_AMO is AccessControl {
         uint256 minStETHOut
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// @dev check if AMO owns enough LP
-        uint256 amoBalance = cvxStaker.stakedBalance();
+        uint256 amoBalance = cvxStaker.getTotalBalance();
 
         if (lpAmount > amoBalance) {
             revert LpBalanceTooLow();
@@ -648,5 +670,21 @@ contract xETH_AMO is AccessControl {
         );
 
         stETH.safeTransfer(msg.sender, output);
+    }
+
+    /**
+     * @notice Recover any token from AMO
+     * @param token Token to recover
+     * @param to Recipient address
+     * @param amount Amount to recover
+     */
+    function recoverToken(
+        address token,
+        address to,
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(token).safeTransfer(to, amount);
+
+        emit RecoveredToken(token, to, amount);
     }
 }

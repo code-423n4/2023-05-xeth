@@ -39,6 +39,7 @@ contract CVXStaker is Ownable {
     event SetOperator(address operator);
     event RecoveredToken(address token, address to, uint256 amount);
     event SetRewardsRecipient(address recipient);
+    event SetRewardTokens(address[] newTokens);
 
     constructor(
         address _operator,
@@ -92,8 +93,14 @@ contract CVXStaker is Ownable {
         emit SetRewardsRecipient(_recipeint);
     }
 
+    function setRewardTokens(address[] calldata newTokens) external onlyOwner {
+      rewardTokens = newTokens;
+
+      emit SetRewardTokens(newTokens);
+    }
+
     /**
-     * @notice Recover any token from AMO
+     * @notice Recover any token from cvxStaker 
      * @param token Token to recover
      * @param to Recipient address
      * @param amount Amount to recover
@@ -163,18 +170,19 @@ contract CVXStaker is Ownable {
     /**
      * @dev Withdraws all staked tokens from the reward pool and unwraps them to the original tokens.
      * @param claim A boolean indicating whether to claim rewards before withdrawing.
-     * @param sendToOperator A boolean indicating whether to send the unwrapped tokens to the operator.
+     * @param sendToOwner A boolean indicating whether to send the unwrapped tokens to the owner.
      * If false, the tokens will remain in the contract.
      * Only the contract owner can call this function.
      */
     function withdrawAllAndUnwrap(
         bool claim,
-        bool sendToOperator
+        bool sendToOwner
     ) external onlyOwner {
         IBaseRewardPool(cvxPoolInfo.rewards).withdrawAllAndUnwrap(claim);
-        if (sendToOperator) {
+        if (sendToOwner) {
             uint256 totalBalance = clpToken.balanceOf(address(this));
-            clpToken.safeTransfer(operator, totalBalance);
+            /// @dev msg.sender is the owner, due to onlyOwner modifier
+            clpToken.safeTransfer(msg.sender, totalBalance);
         }
     }
 
@@ -187,15 +195,32 @@ contract CVXStaker is Ownable {
             address(this),
             claimExtras
         );
-        if (rewardsRecipient != address(0)) {
-            for (uint i = 0; i < rewardTokens.length; i++) {
-                uint256 balance = IERC20(rewardTokens[i]).balanceOf(
-                    address(this)
-                );
-                IERC20(rewardTokens[i]).safeTransfer(rewardsRecipient, balance);
-            }
-        }
     }
+
+    error OutOfBounds(uint8 check);
+
+    function transferReward(uint256 initialIndex, uint256 lastIndex) external {
+      if (initialIndex >= lastIndex) {
+        revert OutOfBounds(0);
+      }
+      if (lastIndex > rewardTokens.length) {
+        revert OutOfBounds(1);
+      }
+
+
+      if (rewardsRecipient != address(0)) {
+        for (uint i = initialIndex; i < lastIndex; ) {
+            uint256 balance = IERC20(rewardTokens[i]).balanceOf(
+                address(this)
+            );
+            if (balance != 0) {
+              IERC20(rewardTokens[i]).safeTransfer(rewardsRecipient, balance);
+            }
+            unchecked {++i;}
+        }
+      }
+    }
+
 
     /**
      * @dev Returns the current staked balance of the contract.
@@ -203,6 +228,12 @@ contract CVXStaker is Ownable {
      */
     function stakedBalance() public view returns (uint256 balance) {
         balance = IBaseRewardPool(cvxPoolInfo.rewards).balanceOf(address(this));
+    }
+
+    function getTotalBalance() public view returns(uint256 balance) {
+      unchecked {
+        balance = stakedBalance() + clpToken.balanceOf(address(this));
+      }
     }
 
     /**

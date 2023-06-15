@@ -72,7 +72,7 @@ contract AMORebalancingTest is DSTest {
             address(stETH),
             pool,
             address(cvxStaker),
-            true
+            0
         );
         AMO.setRebalanceDefender(address(bot));
 

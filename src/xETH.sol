@@ -2,11 +2,10 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin-contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin-contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin-contracts/security/Pausable.sol";
 import "@openzeppelin-contracts/access/AccessControl.sol";
 
-contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
+contract xETH is ERC20, Pausable, AccessControl {
     /* --------------------------------- Errors --------------------------------- */
     error AddressZeroProvided();
     error AmountZeroProvided();
@@ -40,9 +39,11 @@ contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
             revert AddressZeroProvided();
         }
 
+        address _curveAMO = curveAMO;
+
         /// @dev if there was a previous AMO, revoke it's powers
-        if (curveAMO != address(0)) {
-            _revokeRole(MINTER_ROLE, curveAMO);
+        if (_curveAMO != address(0)) {
+            _revokeRole(MINTER_ROLE, _curveAMO);
         }
 
         // @todo call marker method to check if amo is responding
@@ -50,8 +51,8 @@ contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
         /// @dev set the new AMO
         curveAMO = newAMO;
 
-        /// @dev grant it the MINTER_ROLE
-        grantRole(MINTER_ROLE, curveAMO);
+        /// @dev grant the MINTER_ROLE to newAMO
+        _grantRole(MINTER_ROLE, newAMO);
     }
 
     /// @dev mintShares allows for minting new xETH tokens
@@ -60,7 +61,7 @@ contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
     /// @param amount amount of xETH to be minted, it cannot be 0
     function mintShares(
         uint256 amount
-    ) public onlyRole(MINTER_ROLE) whenNotPaused {
+    ) external onlyRole(MINTER_ROLE) {
         /// @dev if the amount to be minted is 0, revert.
         if (amount == 0) revert AmountZeroProvided();
         _mint(msg.sender, amount);
@@ -72,7 +73,7 @@ contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
     /// @param amount amount of xETH to be burned, it cannot be 0
     function burnShares(
         uint256 amount
-    ) public onlyRole(MINTER_ROLE) whenNotPaused {
+    ) external onlyRole(MINTER_ROLE) {
         /// @dev if the amount to be burned is 0, revert.
         if (amount == 0) revert AmountZeroProvided();
         _burn(msg.sender, amount);
@@ -83,14 +84,14 @@ contract xETH is ERC20, ERC20Burnable, Pausable, AccessControl {
     /// @dev pause allows for pausing the contract
     /// @notice this function can only be called by the PAUSER_ROLE
     /// @notice this function can only be called if the contract is not paused
-    function pause() external whenNotPaused onlyRole(PAUSER_ROLE) {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /// @dev unpause allows for unpausing the contract
     /// @notice this function can only be called by the PAUSER_ROLE
     /// @notice this function can only be called if the contract is paused
-    function unpause() external whenPaused onlyRole(PAUSER_ROLE) {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 

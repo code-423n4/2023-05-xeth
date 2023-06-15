@@ -73,7 +73,7 @@ contract AMOAdminTest is DSTest {
             address(stETH),
             pool,
             address(cvxStaker),
-            true
+            0
         );
         AMO.setRebalanceDefender(address(bot));
 
@@ -109,33 +109,28 @@ contract AMOAdminTest is DSTest {
         AMO.setRebalanceDefender(newDefender);
     }
 
-    function testSetMaxSlippageBPS() public {
-        uint256 newMaxSlippageBPS = 5E14;
-
-        vm.expectRevert(xETH_AMO.InvalidSlippageBPS.selector);
-        vm.prank(owner);
-        AMO.setMaxSlippageBPS(newMaxSlippageBPS);
-
-        newMaxSlippageBPS = 1600E14;
-
-        vm.expectRevert(xETH_AMO.InvalidSlippageBPS.selector);
-        vm.prank(owner);
-        AMO.setMaxSlippageBPS(newMaxSlippageBPS);
-
-        newMaxSlippageBPS = 6E14;
+    function testSetSlippage() public {
+        assertEq(AMO.upSlippage(), 0);
+        assertEq(AMO.downSlippage(), 100 * 1E14);
 
         vm.prank(owner);
-        AMO.setMaxSlippageBPS(newMaxSlippageBPS);
-        assertEq(AMO.maxSlippageBPS(), newMaxSlippageBPS);
+        AMO.setSlippage(20 * 1E14, 180 * 1E14);
+
+        assertEq(AMO.upSlippage(), 20 * 1E14);
+        assertEq(AMO.downSlippage(), 180 * 1E14);
+
+        vm.prank(owner);
+        AMO.setSlippage(0, 0);
+
+        assertEq(AMO.upSlippage(), 0);
+        assertEq(AMO.downSlippage(), 0);
     }
 
-    function testSetMaxSlippageBPS_wrongOwner() public {
-        uint256 newMaxSlippageBPS = 6E14;
-
+    function testSetSlippage_wrongOwner() public {
         vm.expectRevert(
             "AccessControl: account 0x7fa9385be102ac3eac297483dd6233d62b3e1496 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
         );
-        AMO.setMaxSlippageBPS(newMaxSlippageBPS);
+        AMO.setSlippage(0, 0);
     }
 
     function testSetRebalanceUpCap() public {

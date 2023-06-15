@@ -40,6 +40,7 @@ contract WrappedXETH is ERC20, Ownable {
     error AmountZeroProvided();
     error DripAlreadyRunning();
     error DripAlreadyStopped();
+    error CantMintZeroShares();
 
     /* -------------------------- Constants and Storage ------------------------- */
 
@@ -95,6 +96,10 @@ contract WrappedXETH is ERC20, Ownable {
         /// @dev calculate the amount of wxETH to mint
         uint256 mintAmount = previewStake(xETHAmount);
 
+        if (mintAmount == 0) {
+          revert CantMintZeroShares();
+        }
+
         /// @dev transfer xETH from the user to the contract
         xETH.safeTransferFrom(msg.sender, address(this), xETHAmount);
 
@@ -143,7 +148,7 @@ contract WrappedXETH is ERC20, Ownable {
     /// @notice this function can only be called by the owner
     /// @notice this function can only be called if the amount provided 
     /// @dev if amount is 0, revert.
-    function addLockedFunds(uint256 amount) external onlyOwner drip {
+    function addLockedFunds(uint256 amount) external onlyOwner {
         /// @dev if amount or _dripRatePerBlock is 0, revert.
         if (amount == 0) revert AmountZeroProvided();
 
@@ -151,9 +156,13 @@ contract WrappedXETH is ERC20, Ownable {
         xETH.safeTransferFrom(msg.sender, address(this), amount);
 
         /// @dev add the amount to the locked funds variable
-        lockedFunds += amount;
+        uint256 cachedLockedFunds = lockedFunds + amount;
+        lockedFunds = cachedLockedFunds;
 
-        emit LockedFundsAdded(amount, lockedFunds);
+        emit LockedFundsAdded(amount, cachedLockedFunds);
+
+        /// @dev drip after funds have been added
+        _accrueDrip();
     }
 
     function setDripRate(uint256 newDripRatePerBlock) external onlyOwner drip {
@@ -167,7 +176,7 @@ contract WrappedXETH is ERC20, Ownable {
 
     /// @dev This function starts (or un-pauses) the drip mechanism
     /// @notice can be only called by the owner
-    function startDrip() external onlyOwner drip {
+    function startDrip() external onlyOwner {
         /// @dev if the drip is already running, revert
         if (dripEnabled) revert DripAlreadyRunning();
 
@@ -186,9 +195,6 @@ contract WrappedXETH is ERC20, Ownable {
         if (!dripEnabled) revert DripAlreadyStopped();
 
         dripEnabled = false;
-
-        /// @dev set the drip lastReport to current block
-        lastReport = block.number;
 
         emit DripStopped();
     }
@@ -221,7 +227,7 @@ contract WrappedXETH is ERC20, Ownable {
     /// @dev the lockedFunds and lastReport variables
     function _accrueDrip() private {
         /// @dev if drip is disabled, no need to accrue
-        if (!dripEnabled) return;
+        if (!dripEnabled || totalSupply() == 0) return;
 
         /// @dev blockDelta is the difference between now and last accrual
         uint256 blockDelta = block.number - lastReport;
@@ -233,25 +239,32 @@ contract WrappedXETH is ERC20, Ownable {
             /// @dev We can only drip what we have
             /// @notice if the dripAmount is greater than the lockedFunds
             /// @notice then we set the dripAmount to the lockedFunds
-            if (dripAmount > lockedFunds) dripAmount = lockedFunds;
+            uint256 cachedLockedFunds = lockedFunds;
+            if (dripAmount > cachedLockedFunds) dripAmount = cachedLockedFunds;
 
             /// @dev unlock the dripAmount from the lockedFunds
             /// @notice so that it reflects the amount of xETH that is available
             /// @notice and the exchange rate shows that
-            lockedFunds -= dripAmount;
+            unchecked {
+              /// @notice since cachedLockedFunds >= dripAmount, the subtraction can be 
+              /// done in unchecked block
+              cachedLockedFunds -= dripAmount;
+            }
 
             /// @dev set the lastReport to the current block
             lastReport = block.number;
 
             /// @notice if there are no remaining locked funds
             /// @notice the drip must be stopped.
-            if (lockedFunds == 0) {
+            if (cachedLockedFunds == 0) {
                 dripEnabled = false;
                 emit DripStopped();
             }
 
+            lockedFunds = cachedLockedFunds;
+
             /// @dev emit succesful drip event with dripAmount, lockedFunds and xETH balance
-            emit Drip(dripAmount, lockedFunds, xETH.balanceOf(address(this)));
+            emit Drip(dripAmount, cachedLockedFunds, xETH.balanceOf(address(this)));
         }
     }
 

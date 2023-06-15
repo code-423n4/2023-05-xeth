@@ -19,14 +19,14 @@ contract MockAMO is xETH_AMO {
         address stETHAddress,
         address curvePoolAddress,
         address cvxStakerAddress,
-        bool isXETHToken0
+        uint256 xETHIndex
     )
         xETH_AMO(
             xETHAddress,
             stETHAddress,
             curvePoolAddress,
             cvxStakerAddress,
-            isXETHToken0
+            xETHIndex
         )
     {}
 
@@ -37,15 +37,19 @@ contract MockAMO is xETH_AMO {
     }
 
     function _bestRebalanceUpQuote(
-        RebalanceUpQuote memory defenderQuote
-    ) public view returns (RebalanceUpQuote memory) {
+        RebalanceUpQuote calldata defenderQuote
+    ) public view returns (uint256) {
         return bestRebalanceUpQuote(defenderQuote);
     }
 
     function _bestRebalanceDownQuote(
-        RebalanceDownQuote memory defenderQuote
-    ) public view returns (RebalanceDownQuote memory) {
+        RebalanceDownQuote calldata defenderQuote
+    ) public view returns (uint256) {
         return bestRebalanceDownQuote(defenderQuote);
+    }
+
+    function _applySlippage(uint256 amount, bool up) public view returns(uint256) {
+      return applySlippage(amount, up ? upSlippage : downSlippage);
     }
 }
 
@@ -108,7 +112,7 @@ contract AMORebalancingTest is DSTest {
             address(stETH),
             pool,
             address(cvxStaker),
-            true
+            0
         );
         AMO.setRebalanceDefender(address(bot));
 
@@ -119,6 +123,16 @@ contract AMORebalancingTest is DSTest {
 
         stETH.mint(owner, 100e18);
         vm.stopPrank();
+    }
+
+    function testApplySlippage() public {
+      uint256 amt = 1E18 * 3.1415926536;
+
+      uint256 value = AMO._applySlippage(amt, true);
+      assertEq(value, amt);
+
+      value = AMO._applySlippage(amt, false);
+      assertEq(value, (amt * (1E18 - AMO.downSlippage())) / 1E18);
     }
 
     function testCoolDown() public {
@@ -188,6 +202,7 @@ contract AMORebalancingTest is DSTest {
 
     function testBestRebalanceUpQuote() public {
         vm.startPrank(owner);
+        AMO.setSlippage(100 * 1E14, 100 * 1E14);
         AMO.setRebalanceUpCap(40e18);
         stETH.approve(address(AMO), 10e18);
         AMO.addLiquidity(10e18, 40e18, 50 * 0.998e18);
@@ -209,22 +224,22 @@ contract AMORebalancingTest is DSTest {
         xETH_AMO.RebalanceUpQuote memory defenderQuote = xETH_AMO
             .RebalanceUpQuote(lpBurn, minXethRemoved);
 
-        xETH_AMO.RebalanceUpQuote memory bestQuote = AMO._bestRebalanceUpQuote(
+        uint256 min_xETHReceived = AMO._bestRebalanceUpQuote(
             defenderQuote
         );
 
-        assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
-        assertEq(bestQuote.min_xETHReceived, defenderQuote.min_xETHReceived);
+        // assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
+        assertEq(min_xETHReceived, defenderQuote.min_xETHReceived);
 
         bps = 120E14; // 120bps
         minXethRemoved = (xETHRemoved * (1E18 - bps)) / 1E18;
 
         defenderQuote = xETH_AMO.RebalanceUpQuote(lpBurn, minXethRemoved);
 
-        bestQuote = AMO._bestRebalanceUpQuote(defenderQuote);
+        min_xETHReceived = AMO._bestRebalanceUpQuote(defenderQuote);
 
-        assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
-        assertTrue(bestQuote.min_xETHReceived > defenderQuote.min_xETHReceived);
+        // assertEq(bestQuote.lpBurn, defenderQuote.lpBurn);
+        assertTrue(min_xETHReceived > defenderQuote.min_xETHReceived);
     }
 
     function testBestRebalanceDownQuote() public {
@@ -252,20 +267,20 @@ contract AMORebalancingTest is DSTest {
         xETH_AMO.RebalanceDownQuote memory defenderQuote = xETH_AMO
             .RebalanceDownQuote(dA, minLpOut);
 
-        xETH_AMO.RebalanceDownQuote memory bestQuote = AMO
+        uint256 minLpReceived = AMO
             ._bestRebalanceDownQuote(defenderQuote);
 
-        assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
-        assertEq(bestQuote.minLpReceived, defenderQuote.minLpReceived);
+        // assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
+        assertEq(minLpReceived, defenderQuote.minLpReceived);
 
         bps = 120E14; // 120bps
         minLpOut = (((dA * 1E18) / vp) * (1E18 - bps)) / 1E18;
 
         defenderQuote = xETH_AMO.RebalanceDownQuote(dA, minLpOut);
 
-        bestQuote = AMO._bestRebalanceDownQuote(defenderQuote);
+        minLpReceived = AMO._bestRebalanceDownQuote(defenderQuote);
 
-        assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
-        assertTrue(bestQuote.minLpReceived > defenderQuote.minLpReceived);
+        // assertEq(bestQuote.xETHAmount, defenderQuote.xETHAmount);
+        assertTrue(minLpReceived > defenderQuote.minLpReceived);
     }
 }
